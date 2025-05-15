@@ -50,6 +50,16 @@ const userSchema = new mongoose.Schema(
       enum: ["active", "inactive", "suspended"],
       default: "active",
     },
+    ghlConnection: {
+      accessToken: String,
+      refreshToken: String,
+      expiresAt: Date,
+      locationId: String,
+      companyId: String,
+      connected: Boolean,
+      updatedAt: Date,
+      error: String
+    }
   },
   {
     timestamps: true,
