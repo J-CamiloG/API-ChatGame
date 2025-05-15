@@ -257,10 +257,10 @@ router.post("/logout", logout)
 
 /**
  * @swagger
- * /api/auth/ghl-callback:
+ * /api/auth/oauth-callback:
  *   get:
- *     summary: Callback para OAuth de Go High Level
- *     description: Endpoint que recibe el código de autorización de GHL y lo intercambia por tokens
+ *     summary: Callback para OAuth de integración externa
+ *     description: Endpoint que recibe el código de autorización y lo intercambia por tokens
  *     tags: [Autenticación]
  *     parameters:
  *       - in: query
@@ -268,17 +268,17 @@ router.post("/logout", logout)
  *         schema:
  *           type: string
  *         required: true
- *         description: Código de autorización proporcionado por GHL
+ *         description: Código de autorización proporcionado por el proveedor
  *       - in: query
  *         name: locationId
  *         schema:
  *           type: string
- *         description: ID de la ubicación seleccionada en GHL
+ *         description: ID de la ubicación seleccionada
  *       - in: query
  *         name: companyId
  *         schema:
  *           type: string
- *         description: ID de la compañía en GHL
+ *         description: ID de la compañía
  *       - in: query
  *         name: state
  *         schema:
@@ -288,7 +288,7 @@ router.post("/logout", logout)
  *       302:
  *         description: Redirección al frontend con estado de éxito o error
  */
-router.get("/ghl-callback", async (req, res) => {
+router.get("/oauth-callback", async (req, res) => {
   try {
     // 1. Obtener el código y otros parámetros de la URL
     const { code, locationId, companyId, state } = req.query;
@@ -309,7 +309,7 @@ router.get("/ghl-callback", async (req, res) => {
         client_secret: process.env.GHL_CLIENT_SECRET,
         grant_type: 'authorization_code',
         code,
-        redirect_uri: `${process.env.API_URL}/api/auth/ghl-callback`,
+        redirect_uri: `${process.env.API_URL}/api/auth/oauth-callback`,
       }),
     });
     
@@ -351,10 +351,10 @@ router.get("/ghl-callback", async (req, res) => {
       }
     });
     
-    console.log(`Conexión GHL establecida para el usuario ${userId}`);
+    console.log(`Conexión establecida para el usuario ${userId}`);
     
     // 5. Redirigir al usuario al frontend con un mensaje de éxito
-    return res.redirect(`${process.env.FRONTEND_URL}/dashboard?connected=true&provider=ghl`);
+    return res.redirect(`${process.env.FRONTEND_URL}/dashboard?connected=true&provider=integration`);
     
   } catch (error) {
     console.error('Error en el callback de OAuth:', error);
@@ -364,10 +364,10 @@ router.get("/ghl-callback", async (req, res) => {
 
 /**
  * @swagger
- * /api/auth/ghl-status:
+ * /api/auth/integration-status:
  *   get:
- *     summary: Verifica el estado de la conexión con GHL
- *     description: Comprueba si el usuario tiene una conexión activa con Go High Level
+ *     summary: Verifica el estado de la integración externa
+ *     description: Comprueba si el usuario tiene una conexión activa con la integración
  *     tags: [Autenticación]
  *     security:
  *       - bearerAuth: []
@@ -392,7 +392,7 @@ router.get("/ghl-callback", async (req, res) => {
  *                   type: string
  *                   example: "789012"
  */
-router.get("/ghl-status", protect, async (req, res) => {
+router.get("/integration-status", protect, async (req, res) => {
   try {
     const userId = req.user.id; // Asumiendo que tu middleware protect añade req.user
     
@@ -411,17 +411,17 @@ router.get("/ghl-status", protect, async (req, res) => {
       companyId: user.ghlConnection.companyId
     });
   } catch (error) {
-    console.error('Error al verificar estado de GHL:', error);
+    console.error('Error al verificar estado de integración:', error);
     return res.status(500).json({ error: 'Error al verificar estado de conexión' });
   }
 });
 
 /**
  * @swagger
- * /api/auth/ghl-disconnect:
+ * /api/auth/integration-disconnect:
  *   post:
- *     summary: Desconecta la cuenta de GHL
- *     description: Elimina la conexión con Go High Level para el usuario actual
+ *     summary: Desconecta la integración externa
+ *     description: Elimina la conexión con la integración para el usuario actual
  *     tags: [Autenticación]
  *     security:
  *       - bearerAuth: []
@@ -438,9 +438,9 @@ router.get("/ghl-status", protect, async (req, res) => {
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: Conexión con GHL eliminada correctamente
+ *                   example: Conexión eliminada correctamente
  */
-router.post("/ghl-disconnect", protect, async (req, res) => {
+router.post("/integration-disconnect", protect, async (req, res) => {
   try {
     const userId = req.user.id;
     
@@ -450,13 +450,13 @@ router.post("/ghl-disconnect", protect, async (req, res) => {
     
     return res.json({ 
       success: true, 
-      message: 'Conexión con GHL eliminada correctamente' 
+      message: 'Conexión eliminada correctamente' 
     });
   } catch (error) {
-    console.error('Error al desconectar GHL:', error);
+    console.error('Error al desconectar integración:', error);
     return res.status(500).json({ 
       success: false,
-      error: 'Error al desconectar GHL' 
+      error: 'Error al desconectar integración' 
     });
   }
 });
