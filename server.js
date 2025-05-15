@@ -20,8 +20,9 @@ app.use(cookieParser());
 
 //ajustes 
 const allowedOrigins = [
-  process.env.FRONTEND_URL,    // URL del frontend
-  process.env.SWAGGER_URL     // URL de Swagger
+  process.env.FRONTEND_URL,    // URL del frontend en producción
+  process.env.SWAGGER_URL,     // URL de Swagger
+  'http://localhost:3000'      // URL del frontend en desarrollo local
 ];
 
 app.use(cors({
