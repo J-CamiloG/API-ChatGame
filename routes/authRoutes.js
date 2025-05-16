@@ -295,6 +295,12 @@ router.get("/oauth-callback", async (req, res) => {
     // 1. Obtener el código y otros parámetros de la URL
     const { code, locationId, companyId, state } = req.query;
     
+    console.log('=== CALLBACK GHL RECIBIDO ===');
+    console.log('Código recibido:', code ? 'Sí' : 'No');
+    console.log('LocationId:', locationId);
+    console.log('CompanyId:', companyId);
+    console.log('State:', state);
+    
     // Verificar que tenemos un código
     if (!code) {
       console.error('No se recibió código de autorización');
@@ -302,64 +308,89 @@ router.get("/oauth-callback", async (req, res) => {
     }
     
     // 2. Intercambiar el código por tokens
-    const tokenResponse = await axios({
-      method: 'post',
-      url: 'https://services.leadconnectorhq.com/oauth/token',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      data: new URLSearchParams({
-        client_id: process.env.GHL_CLIENT_ID,
-        client_secret: process.env.GHL_CLIENT_SECRET,
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: `${process.env.API_URL}/api/auth/oauth-callback`,
-      }),
-    });
-    
-    // Verificar la respuesta
-    if (!tokenResponse.data || !tokenResponse.data.access_token) {
-      console.error('Error al obtener tokens:', tokenResponse.data);
-      return res.redirect(`${process.env.FRONTEND_URL}/dashboard?error=token_exchange`);
-    }
-    
-    const tokenData = tokenResponse.data;
-    
-    // 3. Extraer el userId del state o de cookies/sesión
-    // Opción 1: Si pasaste el userId en el state (recomendado)
-    let userId;
+    console.log('Intercambiando código por tokens...');
     try {
-      // El state podría ser un JSON codificado en base64
-      const decodedState = JSON.parse(Buffer.from(state, 'base64').toString());
-      userId = decodedState.userId;
-    } catch (error) {
-      console.error('Error al decodificar state:', error);
-      return res.redirect(`${process.env.FRONTEND_URL}/dashboard?error=invalid_state`);
-    }
-    
-    if (!userId) {
-      console.error('No se pudo identificar al usuario');
-      return res.redirect(`${process.env.FRONTEND_URL}/dashboard?error=user_not_found`);
-    }
-    
-    // 4. Guardar los tokens en la base de datos
-    await User.findByIdAndUpdate(userId, {
-      ghlConnection: {
-        accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token,
-        expiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
-        locationId,
-        companyId,
-        connected: true,
-        updatedAt: new Date()
+      const tokenResponse = await axios({
+        method: 'post',
+        url: 'https://services.leadconnectorhq.com/oauth/token',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        data: new URLSearchParams({
+          client_id: process.env.GHL_CLIENT_ID,
+          client_secret: process.env.GHL_CLIENT_SECRET,
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: `${process.env.API_URL}/api/auth/oauth-callback`,
+        }),
+      });
+      
+      console.log('Respuesta de tokens recibida:', tokenResponse.data ? 'Sí' : 'No');
+      
+      // Verificar la respuesta
+      if (!tokenResponse.data || !tokenResponse.data.access_token) {
+        console.error('Error al obtener tokens:', tokenResponse.data);
+        return res.redirect(`${process.env.FRONTEND_URL}/dashboard?error=token_exchange`);
       }
-    });
-    
-    console.log(`Conexión establecida para el usuario ${userId}`);
-    
-    // 5. Redirigir al usuario al frontend con un mensaje de éxito
-    return res.redirect(`${process.env.FRONTEND_URL}/dashboard?connected=true&provider=integration`);
+      
+      const tokenData = tokenResponse.data;
+      console.log('Access token obtenido:', tokenData.access_token.substring(0, 10) + '...');
+      console.log('Refresh token obtenido:', tokenData.refresh_token.substring(0, 10) + '...');
+      console.log('Expires in:', tokenData.expires_in);
+      
+      // 3. Extraer el userId del state
+      let userId;
+      try {
+        console.log('Decodificando state...');
+        const decodedState = JSON.parse(Buffer.from(state, 'base64').toString());
+        userId = decodedState.userId;
+        console.log('UserId extraído:', userId);
+      } catch (error) {
+        console.error('Error al decodificar state:', error);
+        return res.redirect(`${process.env.FRONTEND_URL}/dashboard?error=invalid_state`);
+      }
+      
+      if (!userId) {
+        console.error('No se pudo identificar al usuario');
+        return res.redirect(`${process.env.FRONTEND_URL}/dashboard?error=user_not_found`);
+      }
+      
+      // 4. Guardar los tokens en la base de datos
+      console.log('Actualizando usuario en la base de datos...');
+      const updateResult = await User.findByIdAndUpdate(
+        userId,
+        {
+          ghlConnection: {
+            accessToken: tokenData.access_token,
+            refreshToken: tokenData.refresh_token,
+            expiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
+            locationId,
+            companyId,
+            connected: true,
+            updatedAt: new Date()
+          }
+        },
+        { new: true } // Para obtener el documento actualizado
+      );
+      
+      console.log('Resultado de actualización:', updateResult ? 'Éxito' : 'Fallo');
+      if (updateResult) {
+        console.log('Usuario actualizado:', updateResult.id);
+        console.log('Conexión guardada:', !!updateResult.ghlConnection);
+      } else {
+        console.error('No se pudo actualizar el usuario');
+      }
+      
+      console.log('Redirigiendo al frontend...');
+      return res.redirect(`${process.env.FRONTEND_URL}/dashboard?connected=true&provider=ghl`);
+      
+    } catch (error) {
+      console.error('Error en intercambio de tokens:', error.message);
+      console.error(error.stack);
+      return res.redirect(`${process.env.FRONTEND_URL}/dashboard?error=token_exchange&message=${encodeURIComponent(error.message)}`);
+    }
     
   } catch (error) {
-    console.error('Error en el callback de OAuth:', error);
+    console.error('Error general en el callback de OAuth:', error.message);
+    console.error(error.stack);
     return res.redirect(`${process.env.FRONTEND_URL}/dashboard?error=server_error&message=${encodeURIComponent(error.message)}`);
   }
 });
