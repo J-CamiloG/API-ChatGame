@@ -22,7 +22,8 @@ app.use(cookieParser());
 const allowedOrigins = [
   process.env.FRONTEND_URL,    // URL del frontend en producción
   process.env.SWAGGER_URL,     // URL de Swagger
-  'http://localhost:3000'      // URL del frontend en desarrollo local
+  'http://localhost:3000',
+  'http://localhost:3001',
 ];
 
 app.use(cors({
@@ -39,6 +40,14 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+app.use((req, res, next) => {
+  console.log('Solicitud recibida:');
+  console.log('  Origen:', req.headers.origin);
+  console.log('  Método:', req.method);
+  console.log('  Ruta:', req.path);
+  next();
+});
 
 // Rutas
 app.use('/api/auth', authRoutes);
