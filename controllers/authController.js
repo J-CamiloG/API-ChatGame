@@ -113,9 +113,10 @@ exports.loginUser = async (req, res, next) => {
     // Establecer cookie con el token
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "production", // debe ser true si usas HTTPS en prod
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
-    })
+    });
 
     // Responder con los datos del usuario
     res.status(200).json({
