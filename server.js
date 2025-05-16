@@ -72,6 +72,10 @@ const swaggerOptions = {
     },
     servers: [
       {
+        url: 'https://chatgameapi.com', 
+        description: 'Servidor de producción',
+      },
+      {
         url: `http://localhost:${PORT}`,
         description: 'Servidor de desarrollo',
       },
