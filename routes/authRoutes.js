@@ -1,4 +1,6 @@
 const express = require("express")
+const axios = require("axios")
+const User = require("../models/User")
 const router = express.Router()
 const { registerUser, loginUser, getMe, logout } = require("../controllers/authController")
 const { protect } = require("../middleware/auth")
